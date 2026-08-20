@@ -79,6 +79,11 @@ body.coreonly nav .grp{opacity:.4}
 .pathlist{display:flex;flex-wrap:wrap;margin:10px 0 0}
 .pathlist a{font-family:var(--mono);font-size:11.5px;text-decoration:none;cursor:pointer;background:#FFFFFF;border:1px solid #9FD9C7;color:var(--mint);padding:3px 8px;border-radius:3px;margin:0 5px 5px 0}
 .pathlist a:hover{background:#D5EDE4}
+.breakcard{text-align:center;margin:44px 0;padding:26px 20px;border-top:1px dashed var(--rule);border-bottom:1px dashed var(--rule)}
+.bc-kicker{display:block;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+.bc-line{font-family:var(--disp);font-size:16.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink);margin:0 0 6px}
+.bc-sub{font-size:14.5px;color:var(--slate);margin:0;max-width:480px;margin-left:auto;margin-right:auto}
+body.coreonly .breakcard{display:block}
 .colophon{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);text-align:center}
 .colophon .by{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
 .colophon .sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--faint);margin-top:6px}
@@ -174,6 +179,7 @@ button:hover{background:var(--chip-b)}
   .note,.analogy{font-size:9.6pt;page-break-inside:avoid}
   .corechip{display:inline-block;font-size:7pt}
   .colophon{page-break-inside:avoid;margin-top:34px}
+  .breakcard{page-break-inside:avoid;margin:26px 0;padding:16px 0}
   .pathcard{page-break-inside:avoid}
   .analogy{padding-left:34px}
   figcaption{font-size:8pt}
@@ -469,9 +475,11 @@ output 600 ÷ 1,000,000 × $75  = $0.04500    ← 98.7% of the bill
 <li><em class="term">Tokens per second</em> &mdash; the decode rate. Driven by model size and hardware, largely independent of prompt length. This is what makes a long answer feel fast or slow.</li>
 </ul>
 
+<h4>Prompt caching</h4>
+<p>If the first several thousand tokens of a request are identical every time &mdash; a long system prompt, a fixed policy document, a schema &mdash; there's no need to process that part from scratch on every single call. A provider can cache the already-processed version of that fixed opening chunk and reuse it, redoing the work only for whatever's new at the end of the prompt.</p>
 <div class="note good">
-<span class="lbl">Prompt caching</span>
-<p>If the first several thousand tokens of a request are identical every time &mdash; a long system prompt, a fixed policy document, a schema &mdash; providers can cache the processed form and skip re-computing it. Cached input often costs a small fraction of normal input. For any product with a large fixed preamble, this is one of the largest and least glamorous cost levers available.</p>
+<span class="lbl">Why it's worth knowing</span>
+<p>Cached input often costs a small fraction of normal input &mdash; sometimes 90% less. For any product with a large fixed preamble sent on every call, this is one of the largest and least glamorous cost levers available, and it's usually automatic once the repeated prefix is long and stable enough for the provider to detect it.</p>
 </div>
 </section>
 
@@ -673,18 +681,18 @@ That's roughly two high-end GPUs, before serving a single user.</div>
 </div>
 
 <h4>Sampling: why the same prompt gives different answers</h4>
-<p>The model outputs probabilities. Something has to choose. That choice is <em class="term">sampling</em>, and it is tunable:</p>
+<p>The model outputs probabilities, not a single answer. Something has to pick one token from that distribution before generation can continue. That pick is <em class="term">sampling</em>, and it's tunable &mdash; which is why asking the same question twice can give you two different replies, even though nothing about the model changed in between.</p>
 <table>
 <tr><th>Setting</th><th>What it does</th><th>When to use</th></tr>
-<tr><td><b>Temperature</b> 0</td><td>Always take the highest-probability token. Near-deterministic.</td><td>Extraction, classification, structured output, anything graded</td></tr>
-<tr><td><b>Temperature</b> ~0.7</td><td>Sample proportionally to probability. Varied, more natural.</td><td>Writing, brainstorming, conversation</td></tr>
+<tr><td><b>Temperature</b> 0</td><td>Always take the highest-probability token. The same input reliably gives the same output.</td><td>Extraction, classification, structured data &mdash; anywhere you need a repeatable answer</td></tr>
+<tr><td><b>Temperature</b> ~0.7</td><td>Sample proportionally to probability, so lower-probability tokens occasionally get chosen too. Varied, more natural.</td><td>Writing, brainstorming, conversation</td></tr>
 <tr><td><b>Temperature</b> &gt;1</td><td>Flattens the distribution &mdash; unlikely tokens get a real chance.</td><td>Rarely. Degrades into incoherence quickly.</td></tr>
 <tr><td><b>Top-p / top-k</b></td><td>Restrict sampling to the most likely candidates before choosing.</td><td>Usually left at defaults</td></tr>
 </table>
 
 <div class="note warn">
-<span class="lbl">The evaluation consequence</span>
-<p>Because sampling is stochastic, running the same eval twice gives different scores. This is why benchmark results are reported over many runs, why <code>pass@1</code> and <code>pass@k</code> are distinguished, and why "we tested it and it worked" is a weak claim about a language model. Any serious evaluation has to account for variance.</p>
+<span class="lbl">Why this matters beyond chat</span>
+<p>Because sampling involves randomness, running the exact same test twice can produce two different scores &mdash; a model that gets a question right once might get it wrong the next time, with nothing else changed. This is why anyone testing a model rigorously runs each question several times rather than once, and why "we tried it and it worked" is a weak claim on its own. Section 22 covers how this gets measured properly, including the <code>pass@1</code> versus <code>pass@k</code> distinction it leads to.</p>
 </div>
 </section>
 
@@ -902,7 +910,7 @@ A frontier training run  ~10²⁵–10²⁶ FLOPs, total</div>
 <p>This explains behaviours that otherwise look arbitrary:</p>
 <ul>
 <li><b>You can't edit an image by asking</b>, the way you edit a paragraph. Re-running with a tweaked prompt regenerates from different noise and you get a different picture. Editing needs separate techniques that constrain what may change.</li>
-<li><b>Hands and text came out wrong for years.</b> There's no left-to-right consistency check &mdash; the model shapes the whole canvas simultaneously, so locally plausible regions can add up to six fingers.</li>
+<li><b>Hands and text came out wrong for years.</b> A writer producing a sentence can look back and notice "wait, I already used the word 'the' here" &mdash; there's a running left-to-right check. Diffusion has no equivalent. Each small region of the image is being smoothed into something locally plausible at the same time as every other region, with no single pass that counts "how many fingers have I drawn so far." Four fingers looks locally fine; so does a fifth added next to it. Nothing ever adds them up. Text inside images fails the same way &mdash; each letter-shaped patch looks plausible on its own, but nothing is checking that the letters actually spell the intended word.</li>
 <li><b>"Steps" is a quality-cost dial.</b> More denoising passes, better image, more compute. Same trade as reasoning tokens.</li>
 <li><b>Video is far harder</b> than images because consistency must now hold across frames as well as within them.</li>
 </ul>
@@ -962,7 +970,11 @@ A frontier training run  ~10²⁵–10²⁶ FLOPs, total</div>
 
 <div class="note">
 <span class="lbl">Why this matters in a working conversation</span>
-<p>It tells you who can fix a problem. "The model is bad at this" is a procurement question with a long lead time. "Our retrieval is fetching the wrong thing" or "our system prompt is contradictory" is a Tuesday. Most complaints that arrive labelled as the first are actually the second &mdash; and the same distinction is why two companies building on the identical model can ship products of wildly different quality.</p>
+<p>It tells you who can actually fix a problem, and how long that fix takes.</p>
+<p><b>"The model is bad at this"</b> means the fault is in the numbers themselves &mdash; the only fixes are switching to a different model, or waiting for the provider to release a better one. That's a procurement decision, and it can take weeks.</p>
+<p><b>"Our retrieval is fetching the wrong thing," "our system prompt is contradictory," "we haven't given it the right tools"</b> &mdash; these are faults in the layers wrapped around the model. Nobody needs to wait on a lab for any of them; a person on the team can usually fix one before lunch.</p>
+<p>A concrete case: two companies both build a customer-support bot on the exact same underlying model. One gives it clear retrieval, a tightly written system prompt, and the ability to actually look up an order. The other gives it a vague system prompt and no tools at all. The first bot looks impressively capable; the second looks broken. Nothing about the model changed between them &mdash; only the product wrapped around it did.</p>
+<p>Most complaints that arrive labelled "the model is bad at this" turn out, on inspection, to be the second kind. Learning to tell them apart is worth more than knowing which model is currently "best," because it tells you whether the fix is yours to make.</p>
 </div>
 </section>
 <section id="s14" data-core="1">
@@ -1040,7 +1052,7 @@ A frontier training run  ~10²⁵–10²⁶ FLOPs, total</div>
 <ul>
 <li><b>Least privilege.</b> An agent that cannot send email cannot be tricked into sending email. The most effective control by a wide margin.</li>
 <li><b>Human approval for irreversible actions</b> &mdash; payments, deletions, anything leaving the building.</li>
-<li><b>Separating retrieval from action.</b> The component that reads untrusted content isn't the one holding credentials.</li>
+<li><b>Separating retrieval from action.</b> Don't let the same component both read untrusted content and hold the keys to do something consequential. Concretely: the part of the system that fetches and reads a webpage should not be the same part that's logged into your email and able to send messages. If those are split, text hidden in a webpage has nothing to hijack &mdash; the piece that read it was never capable of sending anything in the first place.</li>
 <li><b>Output filtering</b> to catch data leaving in a shape it shouldn't.</li>
 </ul>
 
@@ -1082,6 +1094,13 @@ A frontier training run  ~10²⁵–10²⁶ FLOPs, total</div>
 <p>If output feeds a system rather than a person, specify the shape exactly &mdash; the fields, the types, what to emit when a value is missing. Ambiguity that a human reader would silently resolve becomes a parsing failure downstream. Most production prompts are mostly format specification.</p>
 </div>
 </section>
+
+<div class="breakcard">
+<span class="bc-kicker">Pausing point</span>
+<p class="bc-line">That's the mechanism, start to finish &mdash; the part everything else in this guide leans on.</p>
+<p class="bc-sub">If you're reading straight through, this is a genuinely good place to stop. Stretch, refill the coffee, go touch some grass. The industry stuff in Part II isn't going anywhere.</p>
+</div>
+
 <section id="s17" data-core="0">
 <div class="shead"><span class="ix">17</span><h2>Part II &middot; The industry</h2></div>
 <h3>The stack</h3>
@@ -1155,7 +1174,7 @@ A frontier training run  ~10²⁵–10²⁶ FLOPs, total</div>
 </table>
 
 <h4>The data and evaluation layer</h4>
-<p>This is the layer worth knowing best. All of these companies sell human judgment to model builders, but with meaningfully different positions:</p>
+<p>All of these companies sell human judgment to model builders, but with meaningfully different positions:</p>
 <ul>
 <li><em class="term">Scale AI</em> &mdash; the long-standing incumbent, originally in autonomous-vehicle labelling, since broadened; partly absorbed by Meta.</li>
 <li><em class="term">Surge AI</em> &mdash; high-quality RLHF and expert preference data.</li>
@@ -1665,7 +1684,7 @@ Model: "Acme renews on 30 November. Want me to draft the outreach?"</div>
 <section id="s27" data-core="1">
 <div class="shead"><span class="ix">27</span><span class="corechip">Core</span><h2>Part IV &middot; Agents &amp; deployment</h2></div>
 <h3>RAG &mdash; retrieval-augmented generation</h3>
-<p class="lede">The standard way to make a model answer from your documents rather than from its training data. You asked about this one specifically, so here it is end to end.</p>
+<p class="lede">The standard way to make a model answer from your documents rather than from its training data, and one of the most common patterns in applied AI &mdash; worth walking through end to end.</p>
 
 <p>The problem: a model knows nothing about your contracts, your policies, or your customer records. You could put every document in the prompt, but there are far too many and it would be ruinously expensive. RAG solves this by fetching only the relevant pieces at query time.</p>
 
@@ -2098,75 +2117,75 @@ Behaviour → training    (format, tone, reasoning style, conventions)</div>
 
 <input type="text" class="gsearch no-print" id="gs" placeholder="Filter — try 'token', 'eval', 'RL'…" aria-label="Filter glossary">
 <div id="glist">
-<div class="gitem"><div class="t">Agent <s>§23</s></div><div class="d">A model in a loop with tools, planning across multiple steps rather than answering once.</div></div>
-<div class="gitem"><div class="t">Attention <s>§05</s></div><div class="d">The mechanism that decides which earlier tokens matter for the token being processed.</div></div>
-<div class="gitem"><div class="t">Base model <s>§06</s></div><div class="d">A model after pretraining only — completes text, doesn't follow instructions.</div></div>
-<div class="gitem"><div class="t">Batching <s>§11</s></div><div class="d">Serving many requests through a GPU at once. The main reason API prices are far below single-user serving cost.</div></div>
-<div class="gitem"><div class="t">Benchmark <s>§22</s></div><div class="d">A fixed set of tasks plus a grading method, used to compare models.</div></div>
-<div class="gitem"><div class="t">Chain of thought <s>§10</s></div><div class="d">Intermediate reasoning tokens a model generates before its final answer.</div></div>
+<div class="gitem"><div class="t">Agent <s>&sect;26</s></div><div class="d">A model in a loop with tools, planning across multiple steps rather than answering once.</div></div>
+<div class="gitem"><div class="t">Attention <s>&sect;05</s></div><div class="d">The mechanism that decides which earlier tokens matter for the token being processed.</div></div>
+<div class="gitem"><div class="t">Base model <s>&sect;06</s></div><div class="d">A model after pretraining only — completes text, doesn't follow instructions.</div></div>
+<div class="gitem"><div class="t">Batching <s>&sect;11</s></div><div class="d">Serving many requests through a GPU at once. The main reason API prices are far below single-user serving cost.</div></div>
+<div class="gitem"><div class="t">Benchmark <s>&sect;25</s></div><div class="d">A fixed set of tasks plus a grading method, used to compare models.</div></div>
+<div class="gitem"><div class="t">Chain of thought <s>&sect;10</s></div><div class="d">Intermediate reasoning tokens a model generates before its final answer.</div></div>
 <div class="gitem"><div class="t">Checkpoint <s>&sect;05</s></div><div class="d">A saved snapshot of a model's parameters at a moment in training. A released model is one chosen checkpoint.</div></div>
-<div class="gitem"><div class="t">Chinchilla <s>§09</s></div><div class="d">The finding that for a fixed compute budget, models should be smaller and trained on more data than was previously standard.</div></div>
-<div class="gitem"><div class="t">Chunking <s>§24</s></div><div class="d">Splitting documents into passages before embedding them for retrieval. Boundary choices matter a lot.</div></div>
-<div class="gitem"><div class="t">Constitutional AI <s>§20</s></div><div class="d">Generating training feedback from an explicit written set of principles.</div></div>
+<div class="gitem"><div class="t">Chinchilla <s>&sect;09</s></div><div class="d">The finding that for a fixed compute budget, models should be smaller and trained on more data than was previously standard.</div></div>
+<div class="gitem"><div class="t">Chunking <s>&sect;27</s></div><div class="d">Splitting documents into passages before embedding them for retrieval. Boundary choices matter a lot.</div></div>
 <div class="gitem"><div class="t">Constitutional AI <s>&sect;23</s></div><div class="d">Using an explicit written set of principles, rather than per-instance human ratings, to generate the training feedback signal.</div></div>
 <div class="gitem"><div class="t">Construct validity <s>&sect;25</s></div><div class="d">Whether a benchmark measures the thing you actually care about, or something adjacent to it. Multiple-choice medical questions are not the same task as treating a patient.</div></div>
-<div class="gitem"><div class="t">Contamination <s>§22</s></div><div class="d">Test data leaking into training data, inflating benchmark scores.</div></div>
-<div class="gitem"><div class="t">Context engineering <s>§25</s></div><div class="d">Deciding what goes into the context window on each call. Has largely replaced "prompt engineering" as the term of art.</div></div>
-<div class="gitem"><div class="t">Context window <s>§08</s></div><div class="d">Maximum tokens a model can consider at once, shared between input and output.</div></div>
+<div class="gitem"><div class="t">Contamination <s>&sect;25</s></div><div class="d">Test data leaking into training data, inflating benchmark scores.</div></div>
+<div class="gitem"><div class="t">Context engineering <s>&sect;26</s></div><div class="d">Deciding what goes into the context window on each call. Has largely replaced "prompt engineering" as the term of art.</div></div>
+<div class="gitem"><div class="t">Context window <s>&sect;08</s></div><div class="d">Maximum tokens a model can consider at once, shared between input and output.</div></div>
 <div class="gitem"><div class="t">Data residency <s>&sect;28</s></div><div class="d">Which country data is physically stored and processed in, and therefore whose laws apply to it. Often a hard legal requirement in regulated sectors.</div></div>
-<div class="gitem"><div class="t">Decode <s>§03</s></div><div class="d">The output phase — one token at a time, sequential, memory-bound, expensive.</div></div>
-<div class="gitem"><div class="t">Distillation <s>§11</s></div><div class="d">Training a small model to imitate a large one. How most cheap fast models are made.</div></div>
-<div class="gitem"><div class="t">DPO <s>§20</s></div><div class="d">Direct preference optimization — trains on preference pairs without a separate reward model.</div></div>
-<div class="gitem"><div class="t">Embedding <s>§04</s></div><div class="d">A vector representing text, positioned so that similar meanings sit close together.</div></div>
-<div class="gitem"><div class="t">Eval <s>§22</s></div><div class="d">A test of whether a model or system does what you need. Also the discipline of building such tests.</div></div>
 <div class="gitem"><div class="t">Data sovereignty <s>&sect;28</s></div><div class="d">Which government can compel access to data. Broader than residency — a US-owned provider may be reachable by US authorities even for EU-hosted data.</div></div>
-<div class="gitem"><div class="t">Fine-tuning <s>§06</s></div><div class="d">Further training on top of an existing model. Good for behaviour, poor for facts.</div></div>
-<div class="gitem"><div class="t">FLOPs <s>§09</s></div><div class="d">Floating-point operations — the unit of compute used to describe training runs.</div></div>
-<div class="gitem"><div class="t">Function calling <s>§25</s></div><div class="d">The model emitting a structured request to run a tool, which your code executes.</div></div>
-<div class="gitem"><div class="t">Guardrails <s>§23</s></div><div class="d">Constraints on agent behaviour enforced outside the model.</div></div>
-<div class="gitem"><div class="t">Hallucination <s>§12</s></div><div class="d">Confident output that isn't true. Structural, not a fixable bug — the model optimizes for likelihood, not truth.</div></div>
-<div class="gitem"><div class="t">Hybrid search <s>&sect;27</s></div><div class="d">Running keyword search alongside vector search and merging results. The standard fix for exact identifiers that semantic search handles badly.</div></div>
-<div class="gitem"><div class="t">Inference <s>§07</s></div><div class="d">Running a trained model. Nothing is learned; every call is independent.</div></div>
-<div class="gitem"><div class="t">KV cache <s>§08</s></div><div class="d">Stored intermediate state for tokens already processed. Lives in GPU memory and grows with context length.</div></div>
+<div class="gitem"><div class="t">Decode <s>&sect;03</s></div><div class="d">The output phase — one token at a time, sequential, memory-bound, expensive.</div></div>
+<div class="gitem"><div class="t">Distillation <s>&sect;11</s></div><div class="d">Training a small model to imitate a large one. How most cheap fast models are made.</div></div>
+<div class="gitem"><div class="t">DPO <s>&sect;23</s></div><div class="d">Direct preference optimization — trains on preference pairs without a separate reward model.</div></div>
 <div class="gitem"><div class="t">Elo / arena rating <s>&sect;25</s></div><div class="d">A rating from head-to-head comparisons where people pick the better of two anonymous answers. Captures preference, which is not the same as correctness.</div></div>
-<div class="gitem"><div class="t">LLM-as-judge <s>§22</s></div><div class="d">Using a model to grade outputs. Scalable but inherits the judge's biases; needs calibration against humans.</div></div>
-<div class="gitem"><div class="t">Long-horizon <s>§23</s></div><div class="d">Tasks needing many sequential steps. The hardest thing to make reliable today.</div></div>
-<div class="gitem"><div class="t">MCP <s>§25</s></div><div class="d">Model Context Protocol — an open standard for connecting models to tools and data sources.</div></div>
-<div class="gitem"><div class="t">Mixture of experts (MoE) <s>§11</s></div><div class="d">Architecture where each token activates only a few of many sub-networks. Big memory, low compute per token.</div></div>
-<div class="gitem"><div class="t">Open weights <s>§16</s></div><div class="d">Downloadable parameters. Not the same as open source — data and method usually aren't published.</div></div>
-<div class="gitem"><div class="t">Parameters <s>§05</s></div><div class="d">The learned numbers that define a model. Determine memory footprint and therefore serving cost.</div></div>
-<div class="gitem"><div class="t">pass@1 / pass@k <s>§22</s></div><div class="d">Solved first attempt / solved within k attempts. The gap tells you about reliability versus capability.</div></div>
-<div class="gitem"><div class="t">PPO <s>§20</s></div><div class="d">The classic algorithm for optimizing a model against a reward model.</div></div>
-<div class="gitem"><div class="t">Post-training <s>§06</s></div><div class="d">Everything after pretraining — SFT, RLHF, RLVR. Where the expert data market lives.</div></div>
-<div class="gitem"><div class="t">Prefill <s>§03</s></div><div class="d">The input phase — all tokens processed in parallel, compute-bound, comparatively cheap.</div></div>
-<div class="gitem"><div class="t">Pretraining <s>§06</s></div><div class="d">The initial massive training run on trillions of tokens. Where world knowledge comes from.</div></div>
-<div class="gitem"><div class="t">Prompt caching <s>§03</s></div><div class="d">Reusing the processed form of a repeated prompt prefix at a fraction of normal input cost.</div></div>
-<div class="gitem"><div class="t">Quantization <s>§11</s></div><div class="d">Storing parameters at lower numerical precision to cut memory and speed up inference.</div></div>
-<div class="gitem"><div class="t">RAG <s>§24</s></div><div class="d">Retrieval-augmented generation — fetch relevant document chunks at query time and put them in the prompt.</div></div>
-<div class="gitem"><div class="t">Saturation <s>&sect;25</s></div><div class="d">When every model scores near the ceiling of a benchmark, so differences fall inside run-to-run noise and the benchmark stops discriminating.</div></div>
+<div class="gitem"><div class="t">Embedding <s>&sect;04</s></div><div class="d">A vector representing text, positioned so that similar meanings sit close together.</div></div>
+<div class="gitem"><div class="t">Eval <s>&sect;25</s></div><div class="d">A test of whether a model or system does what you need. Also the discipline of building such tests.</div></div>
+<div class="gitem"><div class="t">Fine-tuning <s>&sect;06</s></div><div class="d">Further training on top of an existing model. Good for behaviour, poor for facts.</div></div>
+<div class="gitem"><div class="t">FLOPs <s>&sect;09</s></div><div class="d">Floating-point operations — the unit of compute used to describe training runs.</div></div>
+<div class="gitem"><div class="t">Function calling <s>&sect;26</s></div><div class="d">The model emitting a structured request to run a tool, which your code executes.</div></div>
+<div class="gitem"><div class="t">Guardrails <s>&sect;26</s></div><div class="d">Constraints on agent behaviour enforced outside the model.</div></div>
+<div class="gitem"><div class="t">Hallucination <s>&sect;14</s></div><div class="d">Confident output that isn't true. Structural, not a fixable bug — the model optimizes for likelihood, not truth.</div></div>
+<div class="gitem"><div class="t">Hybrid search <s>&sect;27</s></div><div class="d">Running keyword search alongside vector search and merging results. The standard fix for exact identifiers that semantic search handles badly.</div></div>
+<div class="gitem"><div class="t">Inference <s>&sect;07</s></div><div class="d">Running a trained model. Nothing is learned; every call is independent.</div></div>
+<div class="gitem"><div class="t">KV cache <s>&sect;08</s></div><div class="d">Stored intermediate state for tokens already processed. Lives in GPU memory and grows with context length.</div></div>
+<div class="gitem"><div class="t">LLM-as-judge <s>&sect;25</s></div><div class="d">Using a model to grade outputs. Scalable but inherits the judge's biases; needs calibration against humans.</div></div>
+<div class="gitem"><div class="t">Long-horizon <s>&sect;26</s></div><div class="d">Tasks needing many sequential steps. The hardest thing to make reliable today.</div></div>
+<div class="gitem"><div class="t">MCP <s>&sect;26</s></div><div class="d">Model Context Protocol — an open standard for connecting models to tools and data sources.</div></div>
+<div class="gitem"><div class="t">Mixture of experts (MoE) <s>&sect;11</s></div><div class="d">Architecture where each token activates only a few of many sub-networks. Big memory, low compute per token.</div></div>
+<div class="gitem"><div class="t">Open weights <s>&sect;20</s></div><div class="d">Downloadable parameters. Not the same as open source — data and method usually aren't published.</div></div>
+<div class="gitem"><div class="t">Parameters <s>&sect;05</s></div><div class="d">The learned numbers that define a model. Determine memory footprint and therefore serving cost.</div></div>
+<div class="gitem"><div class="t">pass@1 / pass@k <s>&sect;25</s></div><div class="d">Solved first attempt / solved within k attempts. The gap tells you about reliability versus capability.</div></div>
+<div class="gitem"><div class="t">Post-training <s>&sect;06</s></div><div class="d">Everything after pretraining — SFT, RLHF, RLVR. Where the expert data market lives.</div></div>
+<div class="gitem"><div class="t">PPO <s>&sect;23</s></div><div class="d">The classic algorithm for optimizing a model against a reward model.</div></div>
+<div class="gitem"><div class="t">Prefill <s>&sect;03</s></div><div class="d">The input phase — all tokens processed in parallel, compute-bound, comparatively cheap.</div></div>
+<div class="gitem"><div class="t">Pretraining <s>&sect;06</s></div><div class="d">The initial massive training run on trillions of tokens. Where world knowledge comes from.</div></div>
+<div class="gitem"><div class="t">Prompt caching <s>&sect;03</s></div><div class="d">Reusing the already-processed form of a repeated prompt prefix instead of recomputing it on every call, at a fraction of normal input cost.</div></div>
+<div class="gitem"><div class="t">Quantization <s>&sect;11</s></div><div class="d">Storing parameters at lower numerical precision to cut memory and speed up inference.</div></div>
+<div class="gitem"><div class="t">RAG <s>&sect;27</s></div><div class="d">Retrieval-augmented generation — fetch relevant document chunks at query time and put them in the prompt.</div></div>
 <div class="gitem"><div class="t">Recall@k <s>&sect;27</s></div><div class="d">How often the chunk containing the answer appears in the top k retrieved. A retrieval metric with no model involved — it tells you your accuracy ceiling.</div></div>
-<div class="gitem"><div class="t">Reranking <s>§24</s></div><div class="d">A second, more careful pass over retrieved chunks to keep only the best few.</div></div>
-<div class="gitem"><div class="t">Reward hacking <s>§20</s></div><div class="d">The model finding outputs the reward model scores highly but humans wouldn't actually like.</div></div>
-<div class="gitem"><div class="t">Reward model <s>§20</s></div><div class="d">A model trained to predict human preference, used to score outputs at scale.</div></div>
-<div class="gitem"><div class="t">RLAIF <s>§20</s></div><div class="d">RLHF with AI providing the preference judgments. Cheaper; risks compounding existing biases.</div></div>
-<div class="gitem"><div class="t">RL environment <s>§21</s></div><div class="d">A simulated setting where a model attempts a task repeatedly and is scored automatically.</div></div>
-<div class="gitem"><div class="t">RLHF <s>§20</s></div><div class="d">Reinforcement learning from human feedback — the loop that turns preference judgments into model behaviour.</div></div>
-<div class="gitem"><div class="t">RLVR <s>§06</s></div><div class="d">RL on verifiable rewards — training on tasks where correctness can be checked automatically.</div></div>
-<div class="gitem"><div class="t">Rubric <s>§19</s></div><div class="d">Expert-written criteria defining what a good answer must contain. Among the highest-value data types.</div></div>
-<div class="gitem"><div class="t">Sampling <s>§07</s></div><div class="d">Choosing which token to emit from the probability distribution. Controlled by temperature and top-p.</div></div>
-<div class="gitem"><div class="t">Scaling laws <s>§09</s></div><div class="d">The empirical relationship between compute, data, parameters, and model performance.</div></div>
-<div class="gitem"><div class="t">SFT <s>§06</s></div><div class="d">Supervised fine-tuning — training on human-written ideal answers. Turns a completer into an assistant.</div></div>
-<div class="gitem"><div class="t">System prompt <s>§07</s></div><div class="d">Instructions the product author places before the user's message on every call.</div></div>
-<div class="gitem"><div class="t">Temperature <s>§07</s></div><div class="d">How much randomness in token selection. 0 is near-deterministic; ~0.7 is conversational.</div></div>
-<div class="gitem"><div class="t">Test-time compute <s>§10</s></div><div class="d">Spending more computation at answer time — the mechanism behind reasoning models.</div></div>
-<div class="gitem"><div class="t">Token <s>§02</s></div><div class="d">A chunk of characters from the model's vocabulary. Unit of cost, speed, and context. ~4 characters.</div></div>
-<div class="gitem"><div class="t">Tool use <s>§25</s></div><div class="d">Letting a model request that external code or services be run on its behalf.</div></div>
-<div class="gitem"><div class="t">TTFT <s>§03</s></div><div class="d">Time to first token — how long prefill takes. What makes an interface feel responsive.</div></div>
-<div class="gitem"><div class="t">Vector store <s>§24</s></div><div class="d">A database of embeddings supporting fast nearest-neighbour search.</div></div>
-<div class="gitem"><div class="t">Weights <s>&sect;05</s></div><div class="d">Synonym for parameters &mdash; the learned numbers that define a model's behaviour.</div></div>
+<div class="gitem"><div class="t">Reranking <s>&sect;27</s></div><div class="d">A second, more careful pass over retrieved chunks to keep only the best few.</div></div>
+<div class="gitem"><div class="t">Reward hacking <s>&sect;23</s></div><div class="d">The model finding outputs the reward model scores highly but humans wouldn't actually like.</div></div>
+<div class="gitem"><div class="t">Reward model <s>&sect;23</s></div><div class="d">A model trained to predict human preference, used to score outputs at scale.</div></div>
+<div class="gitem"><div class="t">RL environment <s>&sect;24</s></div><div class="d">A simulated setting where a model attempts a task repeatedly and is scored automatically.</div></div>
+<div class="gitem"><div class="t">RLAIF <s>&sect;23</s></div><div class="d">RLHF with AI providing the preference judgments. Cheaper; risks compounding existing biases.</div></div>
+<div class="gitem"><div class="t">RLHF <s>&sect;23</s></div><div class="d">Reinforcement learning from human feedback — the loop that turns preference judgments into model behaviour.</div></div>
+<div class="gitem"><div class="t">RLVR <s>&sect;06</s></div><div class="d">RL on verifiable rewards — training on tasks where correctness can be checked automatically.</div></div>
+<div class="gitem"><div class="t">Rubric <s>&sect;22</s></div><div class="d">Expert-written criteria defining what a good answer must contain. Among the highest-value data types.</div></div>
+<div class="gitem"><div class="t">Sampling <s>&sect;07</s></div><div class="d">Choosing which token to emit from the probability distribution. Controlled by temperature and top-p.</div></div>
+<div class="gitem"><div class="t">Saturation <s>&sect;25</s></div><div class="d">When every model scores near the ceiling of a benchmark, so differences fall inside run-to-run noise and the benchmark stops discriminating.</div></div>
+<div class="gitem"><div class="t">Scaling laws <s>&sect;09</s></div><div class="d">The empirical relationship between compute, data, parameters, and model performance.</div></div>
+<div class="gitem"><div class="t">SFT <s>&sect;06</s></div><div class="d">Supervised fine-tuning — training on human-written ideal answers. Turns a completer into an assistant.</div></div>
+<div class="gitem"><div class="t">System prompt <s>&sect;07</s></div><div class="d">Instructions the product author places before the user's message on every call.</div></div>
+<div class="gitem"><div class="t">Temperature <s>&sect;07</s></div><div class="d">How much randomness in token selection. 0 is near-deterministic; ~0.7 is conversational.</div></div>
+<div class="gitem"><div class="t">Test-time compute <s>&sect;10</s></div><div class="d">Spending more computation at answer time — the mechanism behind reasoning models.</div></div>
+<div class="gitem"><div class="t">Token <s>&sect;02</s></div><div class="d">A chunk of characters from the model's vocabulary. Unit of cost, speed, and context. ~4 characters.</div></div>
+<div class="gitem"><div class="t">Tool use <s>&sect;26</s></div><div class="d">Letting a model request that external code or services be run on its behalf.</div></div>
+<div class="gitem"><div class="t">TTFT <s>&sect;03</s></div><div class="d">Time to first token — how long prefill takes. What makes an interface feel responsive.</div></div>
+<div class="gitem"><div class="t">Vector store <s>&sect;27</s></div><div class="d">A database of embeddings supporting fast nearest-neighbour search.</div></div>
+<div class="gitem"><div class="t">Verifier <s>&sect;24</s></div><div class="d">The component that decides whether an attempt at a task succeeded.</div></div>
+<div class="gitem"><div class="t">Weights <s>&sect;05</s></div><div class="d">Synonym for parameters — the learned numbers that define a model's behaviour.</div></div>
 <div class="gitem"><div class="t">Zero data retention <s>&sect;28</s></div><div class="d">A provider processes a request and stores nothing afterwards. Distinct from a training opt-out — enterprise buyers check both.</div></div>
-<div class="gitem"><div class="t">Verifier <s>§21</s></div><div class="d">The component that decides whether an attempt at a task succeeded.</div></div>
 </div>
+<p id="gnone" style="display:none;font-family:var(--mono);font-size:13px;color:var(--faint);padding:16px 0">No match. Try a shorter word.</p>
 <p id="gnone" style="display:none;font-family:var(--mono);font-size:13px;color:var(--faint);padding:16px 0">No match. Try a shorter word.</p>
 </section>
 
