@@ -152,15 +152,17 @@ button:hover{background:var(--chip-b)}
 .gitem .d{font-size:15px;color:var(--slate);margin-top:2px;line-height:1.5}
 
 .print-only{display:none}
-.navlist-toggle{display:none}
+.mobile-menu-btn{display:none}
+.nav-backdrop{display:none}
 @media (max-width:900px){
   .wrap{flex-direction:column;align-items:stretch;gap:0;padding:0 20px}
-  nav{position:static;width:100%;max-height:none;padding:24px 0 8px}
-  .navlist-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:11px 13px;margin:14px 0 0;cursor:pointer}
-  .navlist-toggle .chev{color:var(--faint);transition:transform .2s;font-size:10px}
-  .navlist-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
-  nav .navlinks{display:none}
-  nav .navlinks.open{display:block;margin-top:10px}
+  main{padding-top:66px}
+  .mobile-menu-btn{display:flex;align-items:center;justify-content:center;position:fixed;top:14px;left:14px;z-index:220;width:42px;height:42px;background:var(--panel);border:1px solid var(--rule);border-radius:9px;box-shadow:0 3px 12px rgba(20,24,29,.12);font-size:19px;line-height:1;color:var(--ink);cursor:pointer}
+  .mobile-menu-btn:active{background:var(--paper)}
+  body.navopen .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(20,24,29,.44);z-index:210}
+  body.navopen{overflow:hidden}
+  nav{position:fixed;top:0;left:0;z-index:215;width:84%;max-width:320px;height:100vh;max-height:100vh;background:var(--paper);padding:70px 22px 30px;overflow-y:auto;transform:translateX(-104%);transition:transform .28s cubic-bezier(.2,.7,.3,1);box-shadow:3px 0 24px rgba(20,24,29,.14)}
+  body.navopen nav{transform:translateX(0)}
   h1{font-size:36px}
   body{font-size:16px}
   table{table-layout:fixed}
@@ -197,14 +199,15 @@ button:hover{background:var(--chip-b)}
 <body>
 <div class="wrap">
 
-<nav class="no-print">
+<button type="button" class="mobile-menu-btn no-print" id="mobileMenuBtn" aria-label="Open navigation" aria-expanded="false" aria-controls="siteNav"><span id="mobileMenuIcon">&#9776;</span></button>
+<div class="nav-backdrop no-print" id="navBackdrop"></div>
+<nav class="no-print" id="siteNav">
   <div class="brand">The Operator's<br>Guide to <span>AI</span></div>
   <div class="tag">Reference &middot; v1<br>by Tashi</div>
   <div class="pathsel" role="group" aria-label="Reading mode">
     <button type="button" data-mode="all" class="on"><b>Everything</b><span>33 sections &middot; full reference</span></button>
     <button type="button" data-mode="core"><b>Core path</b><span>17 sections &middot; ~90 min</span></button>
   </div>
-  <button type="button" class="navlist-toggle" id="navlistToggle" aria-expanded="false" aria-controls="navlinksBlock">Jump to a section<span class="chev">&#9662;</span></button>
   <div class="navlinks" id="navlinksBlock">
   <div class="grp">Start</div>
   <a data-jump="s00"><i>00</i> How to use this</a>
@@ -2369,19 +2372,32 @@ Behaviour → training    (format, tone, reasoning style, conventions)</div>
     });
   }
 
-  // mobile section-list toggle
-  var navToggle=document.getElementById('navlistToggle'), navBlock=document.getElementById('navlinksBlock');
-  if(navToggle && navBlock){
-    navToggle.addEventListener('click',function(){
-      var open=navBlock.classList.toggle('open');
-      navToggle.setAttribute('aria-expanded', open?'true':'false');
+  // mobile nav drawer: fixed hamburger button, backdrop, slide-in panel
+  var menuBtn=document.getElementById('mobileMenuBtn'), menuIcon=document.getElementById('mobileMenuIcon'),
+      backdrop=document.getElementById('navBackdrop'), navBlock=document.getElementById('navlinksBlock');
+  function openDrawer(){
+    document.body.classList.add('navopen');
+    if(menuBtn){menuBtn.setAttribute('aria-expanded','true');}
+    if(menuIcon){menuIcon.innerHTML='&#10005;';}
+  }
+  function closeDrawer(){
+    document.body.classList.remove('navopen');
+    if(menuBtn){menuBtn.setAttribute('aria-expanded','false');}
+    if(menuIcon){menuIcon.innerHTML='&#9776;';}
+  }
+  if(menuBtn){
+    menuBtn.addEventListener('click',function(){
+      document.body.classList.contains('navopen') ? closeDrawer() : openDrawer();
     });
+  }
+  if(backdrop){backdrop.addEventListener('click',closeDrawer);}
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && document.body.classList.contains('navopen')) closeDrawer();
+  });
+  if(navBlock){
     navBlock.querySelectorAll('[data-jump]').forEach(function(a){
       a.addEventListener('click',function(){
-        if(window.matchMedia('(max-width:900px)').matches){
-          navBlock.classList.remove('open');
-          navToggle.setAttribute('aria-expanded','false');
-        }
+        if(window.matchMedia('(max-width:900px)').matches) closeDrawer();
       });
     });
   }
