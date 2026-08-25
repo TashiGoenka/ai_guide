@@ -152,12 +152,19 @@ button:hover{background:var(--chip-b)}
 .gitem .d{font-size:15px;color:var(--slate);margin-top:2px;line-height:1.5}
 
 .print-only{display:none}
+.navlist-toggle{display:none}
 @media (max-width:900px){
-  .wrap{flex-direction:column;gap:0;padding:0 20px}
+  .wrap{flex-direction:column;align-items:stretch;gap:0;padding:0 20px}
   nav{position:static;width:100%;max-height:none;padding:24px 0 8px}
+  .navlist-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:11px 13px;margin:14px 0 0;cursor:pointer}
+  .navlist-toggle .chev{color:var(--faint);transition:transform .2s;font-size:10px}
+  .navlist-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
   nav .navlinks{display:none}
+  nav .navlinks.open{display:block;margin-top:10px}
   h1{font-size:36px}
   body{font-size:16px}
+  figure{overflow-x:auto}
+  figure svg{width:700px;max-width:none;flex-shrink:0}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 
@@ -193,11 +200,12 @@ button:hover{background:var(--chip-b)}
 <nav class="no-print">
   <div class="brand">The Operator's<br>Guide to <span>AI</span></div>
   <div class="tag">Reference &middot; v1<br>by Tashi</div>
-  <div class="navlinks">
   <div class="pathsel" role="group" aria-label="Reading mode">
     <button type="button" data-mode="all" class="on"><b>Everything</b><span>33 sections &middot; full reference</span></button>
     <button type="button" data-mode="core"><b>Core path</b><span>17 sections &middot; ~90 min</span></button>
   </div>
+  <button type="button" class="navlist-toggle" id="navlistToggle" aria-expanded="false" aria-controls="navlinksBlock">Jump to a section<span class="chev">&#9662;</span></button>
+  <div class="navlinks" id="navlinksBlock">
   <div class="grp">Start</div>
   <a data-jump="s00"><i>00</i> How to use this</a>
   <div class="grp">I &middot; How models work</div>
@@ -2358,6 +2366,23 @@ Behaviour → training    (format, tone, reasoning style, conventions)</div>
         it.style.display=m?'':'none'; if(m)hits++;
       });
       document.getElementById('gnone').style.display=hits?'none':'block';
+    });
+  }
+
+  // mobile section-list toggle
+  var navToggle=document.getElementById('navlistToggle'), navBlock=document.getElementById('navlinksBlock');
+  if(navToggle && navBlock){
+    navToggle.addEventListener('click',function(){
+      var open=navBlock.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', open?'true':'false');
+    });
+    navBlock.querySelectorAll('[data-jump]').forEach(function(a){
+      a.addEventListener('click',function(){
+        if(window.matchMedia('(max-width:900px)').matches){
+          navBlock.classList.remove('open');
+          navToggle.setAttribute('aria-expanded','false');
+        }
+      });
     });
   }
 
